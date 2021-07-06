@@ -1,0 +1,221 @@
+---
+title: "SVI_COVID"
+author: "John Rollman"
+date: "July 5, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages Used  
+```{r message=FALSE, warning=FALSE, error=FALSE}
+library(tidyverse) #Data manipulation and formatting
+library(knitr) #Report tools and formatting
+library(corrplot) #Pretty correlation plots
+library(caret) #Multiuse package containing many models
+library(sem) #Structural equation models for CFA
+library(psych) #Exploratory factor models
+library(randomForest) #Classification trees also in caret
+library(gbm) #Logistic classifies for caret and other packages
+library(DiagrammeR)
+library(rattle)
+library(kableExtra)
+library(class)
+library(ape)
+```
+
+
+#Load in Data  
+```{r}
+sviDat <- read.csv("SVI2018_US_COUNTY.csv") %>% #Load CSV provided by CDC website
+  select(c(STATE,ST_ABBR,COUNTY,FIPS)|starts_with('EP_')|starts_with('RPL_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
+  replace(., . ==-999, NA) %>% #Excluding counties with missing data
+  na.omit()
+
+#head(sviDat)
+kable(head(sviDat), caption = "Preview of SVI Data", digits = 1, format = 'html') %>%
+  kable_styling() %>%
+  kableExtra::scroll_box(width = "100%", height = "375px")
+```
+
+#Exploratory Analysis  
+##Summary Statistics  
+```{r}
+#Summary
+kable(do.call(cbind, lapply(sviDat[,5:20], summary)), caption = "Summary Statistics for All Variables", digits = 1, format = 'html') %>%
+  kable_styling() %>%
+  kableExtra::scroll_box(width = "100%", height = "375px")
+```
+
+
+## Density Plots  
+```{r}
+#Create Density Plots
+for(i in 5:20) {
+a <- ggplot(sviDat,aes(sviDat[,i])) + 
+  geom_density(kernel = "gaussian", fill = 'lightpink') +
+  geom_vline(aes(xintercept=mean(sviDat[,i])), color="blue", linetype="dashed", size=1) +
+  ggtitle(colnames(sviDat)[i]) +
+  labs( x = colnames(sviDat)[i])
+print(a)
+}
+```
+
+#Clustering Counties  
+We could use RPL themes as a 'target' variable, however, those values are the summed percentile ranks of the individual values and thus teh relationship is known and not ne essarily interesting or useful. We will play around with that later on. First question of interest would be to see what these counties have in common.
+```{r}
+#Using hierarchical Clustering. Since all variables are percentages, there is not a big need to center and scale here.
+SVI_hc <- hclust(dist(scale(sviDat[,5:20])), method = "complete") #Not using the calculated RPL themes to cluster
+SVI_hc_corr <- hclust(as.dist(1-abs(cor(scale(sviDat[,5:20])))))
+
+#Showing the dendrogram: This will be illegible because there are too many counties!
+#plot(SVI_hc, main='Clustering Counties Based on SVI Census Measures', xlab="", sub="", cex=.2)
+plot(as.phylo(SVI_hc_corr), type = "fan", cex=.6)
+#plot(as.phylo(SVI_hc), type = "fan", cex = 0.1)
+
+#Thinking about percentiles, lets choose 10 and 4 clusters to represent the 10 deciles and 4 quartiles
+sviDat_c <- sviDat
+sviDat_c$clust_res_10 <- cutree(SVI_hc,10)
+# sviDat_c$clust_res_4 <- cutree(SVI_hc,4)
+# sviDat_c$clust_res_5 <- cutree(SVI_hc,5)
+# sviDat_c$clust_res_8 <- cutree(SVI_hc,8)
+# sviDat_c$clust_res_20 <- cutree(SVI_hc,20)
+
+```
+
+
+##Exploring the clusters  
+```{r}
+#Create Boxplots for 10 clusters
+for(i in 5:20) {
+a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_10), y=sviDat_c[,i])) +
+  geom_jitter(aes(color=STATE)) +
+  geom_boxplot() +
+  ggtitle(colnames(sviDat_c)[i]) +
+  theme(legend.position = "none")
+print(a)
+}
+
+# #Create Boxplots for 4 clusters
+# for(i in 5:20) {
+# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_4), y=sviDat_c[,i])) +
+#   geom_jitter(aes(color=STATE)) +
+#   geom_boxplot() +
+#   ggtitle(colnames(sviDat_c)[i]) +
+#   theme(legend.position = "none")
+# print(a)
+# }
+# 
+# 
+# #Create Boxplots for 5 clusters
+# for(i in 5:20) {
+# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_5), y=sviDat_c[,i])) +
+#   geom_jitter(aes(color=STATE)) +
+#   geom_boxplot() +
+#   ggtitle(colnames(sviDat_c)[i]) +
+#   theme(legend.position = "none")
+# print(a)
+# }
+# 
+# #Create Boxplots for 8 clusters
+# for(i in 5:20) {
+# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_8), y=sviDat_c[,i])) +
+#   geom_jitter(aes(color=STATE)) +
+#   geom_boxplot(aes(alpha=0)) +
+#   ggtitle(colnames(sviDat_c)[i]) +
+#   theme(legend.position = "none")
+# print(a)
+# }
+# 
+# #Create Boxplots for 20 clusters
+# for(i in 5:20) {
+# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_20), y=sviDat_c[,i])) +
+#   geom_jitter(aes(color=STATE)) +
+#   geom_boxplot(aes(alpha=0)) +
+#   ggtitle(colnames(sviDat_c)[i]) +
+#   theme(legend.position = "none")
+# print(a)
+# }
+
+
+#Create Boxplots for 4 clusters and the RPL Theme
+# 
+# ggplot(sviDat_c,aes(x = as.factor(clust_res_q), y=sviDat_c$RPL_THEMES)) +
+#   geom_jitter(aes(color=STATE)) +
+#   geom_boxplot() +
+#   theme(legend.position = "none")
+# 
+# ggplot(sviDat_c,aes(x = as.factor(clust_res_d), y=sviDat_c$RPL_THEMES)) +
+#   geom_jitter(aes(color=STATE)) +
+#   geom_boxplot() +
+#   theme(legend.position = "none")
+```
+
+
+
+
+
+#PCA Analysis w/ clustering
+
+
+
+
+
+#Predicting Vulnerablility  
+
+
+
+
+
+#Assessing SVI and COVID Impacts  
+```{r}
+## Install the required package with:
+## install.packages("RSocrata")
+
+library("RSocrata")
+
+df <- read.socrata(
+  "https://data.cdc.gov/resource/kn79-hsxy.json",
+  app_token = "YOURAPPTOKENHERE",
+  email     = "user@example.com",
+  password  = "fakepassword"
+)
+
+
+covDat <-
+  select(c(STATE,ST_ABBR,COUNTY,FIPS)|starts_with('EP_')|starts_with('RPL_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
+  replace(., . ==-999, NA) %>% #Excluding counties with missing data
+  na.omit()
+```
+
+
+
+```{r}
+hc <- hclust(dist(USArrests), "ave")
+plot(hc)
+plot(hc, hang = -1)
+
+## Do the same with centroid clustering and *squared* Euclidean distance,
+## cut the tree into ten clusters and reconstruct the upper part of the
+## tree from the cluster centers.
+hc <- hclust(dist(USArrests)^2, "cen")
+memb <- cutree(hc, k = 10)
+cent <- NULL
+for(k in 1:10){
+  cent <- rbind(cent, colMeans(USArrests[memb == k, , drop = FALSE]))
+}
+hc1 <- hclust(dist(cent)^2, method = "cen", members = table(memb))
+opar <- par(mfrow = c(1, 2))
+plot(hc,  labels = FALSE, hang = -1, main = "Original Tree")
+plot(hc1, labels = FALSE, hang = -1, main = "Re-start from 10 clusters")
+par(opar)
+
+hc <- hclust(as.dist(1-abs(cor(t(USArrests)))))
+plot(hc)
+```
+
+
+
+
