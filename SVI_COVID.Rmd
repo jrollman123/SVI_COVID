@@ -1,5 +1,5 @@
 ---
-title: "SVI_COVID"
+title: "COVID vs SVI Impact Analysis"
 author: "John Rollman"
 date: "July 5, 2021"
 output: 
@@ -45,7 +45,7 @@ library(MVN)
 ```
 
 
-#Load in Data  
+# Load in Data  
 ```{r}
 sviDat <- read.csv("SVI2018_US_COUNTY.csv") %>% #Load CSV provided by CDC website
   select(c(STATE,ST_ABBR,COUNTY,FIPS, E_TOTPOP)|starts_with('EP_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
@@ -58,8 +58,8 @@ kable(head(sviDat), caption = "Preview of SVI Data", digits = 1, format = 'html'
   kableExtra::scroll_box(width = "100%", height = "375px")
 ```
 
-#Exploratory Analysis  
-##Summary Statistics  
+# Exploratory Analysis  
+## Summary Statistics  
 ```{r}
 #Summary
 kable(do.call(cbind, lapply(sviDat[,5:20], summary)), caption = "Summary Statistics for All Variables", digits = 1, format = 'html') %>%
@@ -81,7 +81,7 @@ print(a)
 }
 ```
 
-#Clustering Counties, States, and Variables 
+# Clustering Counties, States, and Variables 
 ```{r}
 # Clustering the variables base on correlation
 SVI_hc_corr <- hclust(as.dist(1-abs(cor(scale(sviDat[,6:20])))))
@@ -128,7 +128,7 @@ st_grp <- sviDat_st_c %>%
 ```
 
 
-##Exploring the clusters  
+## Exploring the clusters  
 ```{r}
 
 dat_box <- sviDat_st_c %>%
@@ -158,7 +158,7 @@ print(a)
 
 
 
-#Assessing SVI and COVID Impacts  
+# Assessing SVI and COVID Impacts  
 ## Get Data from CDC API
 ```{r}
 
