@@ -2,7 +2,15 @@
 title: "SVI_COVID"
 author: "John Rollman"
 date: "July 5, 2021"
-output: html_document
+output: 
+  rmarkdown::github_document:
+    toc: yes
+    toc_depth: '4'
+  html_document:
+    toc: yes
+    toc_depth: '4'
+    toc_float: yes
+always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
@@ -14,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse) #Data manipulation and formatting
 library(knitr) #Report tools and formatting
 library(corrplot) #Pretty correlation plots
-library(caret) #Multiuse package containing many models
+library(tidymodels) #Multiuse package containing many models
 library(sem) #Structural equation models for CFA
 library(psych) #Exploratory factor models
 library(randomForest) #Classification trees also in caret
@@ -24,13 +32,23 @@ library(rattle)
 library(kableExtra)
 library(class)
 library(ape)
+library(readxl)
+library(visdat)
+library(naniar)
+library(janitor)
+library(correlationfunnel)
+library(Hmisc)
+library(xgboost)
+library(vip)
+library(RColorBrewer)
+library(MVN)
 ```
 
 
 #Load in Data  
 ```{r}
 sviDat <- read.csv("SVI2018_US_COUNTY.csv") %>% #Load CSV provided by CDC website
-  select(c(STATE,ST_ABBR,COUNTY,FIPS)|starts_with('EP_')|starts_with('RPL_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
+  select(c(STATE,ST_ABBR,COUNTY,FIPS, E_TOTPOP)|starts_with('EP_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
   replace(., . ==-999, NA) %>% #Excluding counties with missing data
   na.omit()
 
@@ -63,159 +81,257 @@ print(a)
 }
 ```
 
-#Clustering Counties  
-We could use RPL themes as a 'target' variable, however, those values are the summed percentile ranks of the individual values and thus teh relationship is known and not ne essarily interesting or useful. We will play around with that later on. First question of interest would be to see what these counties have in common.
+#Clustering Counties, States, and Variables 
 ```{r}
-#Using hierarchical Clustering. Since all variables are percentages, there is not a big need to center and scale here.
-SVI_hc <- hclust(dist(scale(sviDat[,5:20])), method = "complete") #Not using the calculated RPL themes to cluster
-SVI_hc_corr <- hclust(as.dist(1-abs(cor(scale(sviDat[,5:20])))))
-
-#Showing the dendrogram: This will be illegible because there are too many counties!
-#plot(SVI_hc, main='Clustering Counties Based on SVI Census Measures', xlab="", sub="", cex=.2)
+# Clustering the variables base on correlation
+SVI_hc_corr <- hclust(as.dist(1-abs(cor(scale(sviDat[,6:20])))))
 plot(as.phylo(SVI_hc_corr), type = "fan", cex=.6)
-#plot(as.phylo(SVI_hc), type = "fan", cex = 0.1)
 
-#Thinking about percentiles, lets choose 10 and 4 clusters to represent the 10 deciles and 4 quartiles
-sviDat_c <- sviDat
-sviDat_c$clust_res_10 <- cutree(SVI_hc,10)
-# sviDat_c$clust_res_4 <- cutree(SVI_hc,4)
-# sviDat_c$clust_res_5 <- cutree(SVI_hc,5)
-# sviDat_c$clust_res_8 <- cutree(SVI_hc,8)
-# sviDat_c$clust_res_20 <- cutree(SVI_hc,20)
+
+# Using hierarchical Clustering. Since all variables are percentages, there is not a big need to center and scale here.
+SVI_hc <- hclust(dist(scale(sviDat[,6:20])), method = "complete") #Not using the calculated RPL themes to cluster
+plot(SVI_hc, main='Clustering Counties Based on SVI Census Measures', xlab="", sub="", cex=.2)
+
+
+# Summarizing on state and taking the average county values
+sviDat_state_pop <- sviDat %>%
+  select(STATE,E_TOTPOP) %>%
+  group_by(STATE) %>%
+  summarise(st_TOTPOP = sum(E_TOTPOP)) 
+
+
+sviDat_state <- sviDat %>%
+  select(!c(COUNTY,FIPS,E_TOTPOP)) %>%
+  group_by(STATE, ST_ABBR) %>%
+  summarise(across(everything(), list(avg = mean, min = min, max = max))) 
+  
+
+# Clustering States  
+SVI_hc_st <- hclust(dist(scale(sviDat_state[,3:50])), method = "complete")
+SVI_hc_st$labels <- sviDat_state$STATE
+plot(SVI_hc_st, main='Clustering Counties Based on SVI Census Measures', xlab="", sub="", cex=.6)
+
+
+sviDat_st_c <- sviDat_state
+sviDat_st_c$group <- cutree(SVI_hc_st, 6)
+
+tabyl(sviDat_st_c$group)
+
+colors <- brewer.pal(n=6, name='Dark2')
+cluscomp <- cutree(SVI_hc_st, 6)
+plot(as.phylo(SVI_hc_st), type = 'fan', tip.color = colors[cluscomp], label.offset =.8, cex = .6)
+
+st_grp <- sviDat_st_c %>%
+  group_by(STATE) %>%
+  summarise(st_grp = max(group))
 
 ```
 
 
 ##Exploring the clusters  
 ```{r}
-#Create Boxplots for 10 clusters
-for(i in 5:20) {
-a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_10), y=sviDat_c[,i])) +
-  geom_jitter(aes(color=STATE)) +
+
+dat_box <- sviDat_st_c %>%
+  select(ends_with('avg') | c(STATE, ST_ABBR, group)) %>%
+  as.data.frame()
+
+
+
+#Create Boxplots for 6 clusters
+for(i in 1:16) {
+a <- ggplot(dat_box,aes(x = as.factor(group), y=dat_box[,i])) +
+  geom_jitter(aes(color=STATE), position = position_jitter(seed = 1)) +
   geom_boxplot() +
-  ggtitle(colnames(sviDat_c)[i]) +
-  theme(legend.position = "none")
+  ggtitle(colnames(dat_box)[i]) +
+  theme(legend.position = "none") +
+  geom_text(position = position_jitter(seed = 1),check_overlap = TRUE, size = 3, aes(label=ST_ABBR))
 print(a)
 }
 
-# #Create Boxplots for 4 clusters
-# for(i in 5:20) {
-# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_4), y=sviDat_c[,i])) +
-#   geom_jitter(aes(color=STATE)) +
-#   geom_boxplot() +
-#   ggtitle(colnames(sviDat_c)[i]) +
-#   theme(legend.position = "none")
-# print(a)
-# }
-# 
-# 
-# #Create Boxplots for 5 clusters
-# for(i in 5:20) {
-# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_5), y=sviDat_c[,i])) +
-#   geom_jitter(aes(color=STATE)) +
-#   geom_boxplot() +
-#   ggtitle(colnames(sviDat_c)[i]) +
-#   theme(legend.position = "none")
-# print(a)
-# }
-# 
-# #Create Boxplots for 8 clusters
-# for(i in 5:20) {
-# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_8), y=sviDat_c[,i])) +
-#   geom_jitter(aes(color=STATE)) +
-#   geom_boxplot(aes(alpha=0)) +
-#   ggtitle(colnames(sviDat_c)[i]) +
-#   theme(legend.position = "none")
-# print(a)
-# }
-# 
-# #Create Boxplots for 20 clusters
-# for(i in 5:20) {
-# a <- ggplot(sviDat_c,aes(x = as.factor(clust_res_20), y=sviDat_c[,i])) +
-#   geom_jitter(aes(color=STATE)) +
-#   geom_boxplot(aes(alpha=0)) +
-#   ggtitle(colnames(sviDat_c)[i]) +
-#   theme(legend.position = "none")
-# print(a)
-# }
 
-
-#Create Boxplots for 4 clusters and the RPL Theme
-# 
-# ggplot(sviDat_c,aes(x = as.factor(clust_res_q), y=sviDat_c$RPL_THEMES)) +
-#   geom_jitter(aes(color=STATE)) +
-#   geom_boxplot() +
-#   theme(legend.position = "none")
-# 
-# ggplot(sviDat_c,aes(x = as.factor(clust_res_d), y=sviDat_c$RPL_THEMES)) +
-#   geom_jitter(aes(color=STATE)) +
-#   geom_boxplot() +
-#   theme(legend.position = "none")
 ```
 
 
-
-
-
-#PCA Analysis w/ clustering
-
-
-
-
-
-#Predicting Vulnerablility  
-
-
+```{r echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, include=FALSE}
+#etst
+```
 
 
 
 #Assessing SVI and COVID Impacts  
+## Get Data from CDC API
 ```{r}
-## Install the required package with:
-## install.packages("RSocrata")
 
 library("RSocrata")
 
-df <- read.socrata(
+cnty_covDat <- read.socrata(
   "https://data.cdc.gov/resource/kn79-hsxy.json",
-  app_token = "YOURAPPTOKENHERE",
-  email     = "user@example.com",
-  password  = "fakepassword"
+  app_token = token, 
+  email     = email,
+  password  = pswd
 )
 
+cnty_Dat <- cnty_covDat  %>%
+  select(county_fips_code, total_death, covid_death) %>%
+  rename(FIPS=county_fips_code) %>%
+  mutate(FIPS = as.integer(FIPS)) %>%
+  inner_join(sviDat, by = 'FIPS', keep=F) %>%
+  inner_join(st_grp, by = 'STATE')
 
-covDat <-
-  select(c(STATE,ST_ABBR,COUNTY,FIPS)|starts_with('EP_')|starts_with('RPL_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
-  replace(., . ==-999, NA) %>% #Excluding counties with missing data
-  na.omit()
+
+st_covDat <- read.socrata(
+  "https://data.cdc.gov/resource/9mfq-cb36.json",
+  app_token = token, 
+  email     = email,
+  password  = pswd
+) %>% 
+  select(state,tot_cases,tot_death) %>%
+  group_by(state) %>%
+  summarise(tot_cases = max(tot_cases), tot_death=max(tot_death)) %>%
+  rename(ST_ABBR = state) %>%
+  inner_join(dat_box, by = 'ST_ABBR') %>%
+  inner_join(sviDat_state_pop, by = 'STATE') %>%
+  mutate(tot_cases = as.numeric(tot_cases), tot_death=as.numeric(tot_death)) %>%
+  mutate(pct_case = tot_cases/st_TOTPOP, pct_death_t=tot_death/st_TOTPOP, cov_mort = tot_death/tot_cases, .keep='all')
+
 ```
 
 
-
+## Observing Death and Case Distributions
 ```{r}
-hc <- hclust(dist(USArrests), "ave")
-plot(hc)
-plot(hc, hang = -1)
+ggplot(st_covDat,aes(tot_death)) + 
+  geom_density(kernel = "gaussian", fill = 'lightpink') +
+  geom_vline(aes(xintercept=mean(tot_death)), color="blue", linetype="dashed", size=1) +
+  ggtitle('Covid Deaths') +
+  labs() 
 
-## Do the same with centroid clustering and *squared* Euclidean distance,
-## cut the tree into ten clusters and reconstruct the upper part of the
-## tree from the cluster centers.
-hc <- hclust(dist(USArrests)^2, "cen")
-memb <- cutree(hc, k = 10)
-cent <- NULL
-for(k in 1:10){
-  cent <- rbind(cent, colMeans(USArrests[memb == k, , drop = FALSE]))
-}
-hc1 <- hclust(dist(cent)^2, method = "cen", members = table(memb))
-opar <- par(mfrow = c(1, 2))
-plot(hc,  labels = FALSE, hang = -1, main = "Original Tree")
-plot(hc1, labels = FALSE, hang = -1, main = "Re-start from 10 clusters")
-par(opar)
 
-hc <- hclust(as.dist(1-abs(cor(t(USArrests)))))
-plot(hc)
+ggplot(st_covDat,aes(tot_cases)) + 
+  geom_density(kernel = "gaussian", fill = 'lightpink') +
+  geom_vline(aes(xintercept=mean(tot_cases)), color="blue", linetype="dashed", size=1) +
+  ggtitle('Covid Deaths') +
+  labs() 
+
+```
+
+## Trying a Poisson model using a rate of deaths per cases
+```{r}
+log_dat <- st_covDat %>%
+  select(c(tot_death, tot_cases)|ends_with('avg')) %>%
+  mutate(logcase = log(tot_cases), .keep='unused')
+
+poisson_fit <- glm(tot_death ~ . - logcase + offset(logcase), family = poisson(link = "log"), data = log_dat)
+summary(poisson_fit)
+
+dp = sum(residuals(poisson_fit,type ="pearson")^2)/poisson_fit$df.residual
+dp
+
+library(AER)
+dispersiontest(poisson_fit)
+
+
+summary(poisson_fit,dispersion = dp)
+```
+Very high dispersion resulting in a probably faulty model  
+
+
+## Trying a quasipoisson model  
+```{r}
+poisson_fit <- glm(tot_death ~ . - logcase + offset(logcase), family = quasipoisson(), data = log_dat)
+summary(poisson_fit)
+
 ```
 
 
+## Trying a binomial model
+```{r}
+b_dat <- st_covDat %>%
+  select(c(tot_death, tot_cases)|ends_with('avg')) 
+
+b_fit <- glm(cbind(tot_death, tot_cases) ~ ., family = binomial, data = b_dat)
+summary(b_fit)
+
+```
+
+
+## Checking multicollinearity  
+```{r}
+res2.A <-rcorr(as.matrix(b_dat[,3:18]),type = "pearson")
+corrplot(res2.A$r, type="upper", order="hclust",tl.cex=.8)
+```
+
+
+## Reducing multicolinearity with dimension reduction  
+### Using Exploratory Factor Analysis to reduce collinearity
+```{r}
+#Preprocessing
+X <- b_dat[,3:18]
+
+X <- scale(X)
+
+#Parallel Analysis
+fa.parallel(X, n.iter =100, fm = "ml", fa="fa")
+
+
+f <- 3
+
+#EFA Full Data
+fa.out.none <- fa(X, fm="ml",nfactors = f, rotate="none")
+fa.out.varimax <- fa(X, fm="ml",nfactors = f, rotate="varimax")
+fa.out.quartimax <- fa(X, fm="ml",nfactors = f, rotate="quartimax")
+
+Results <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
+rownames(Results) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
+colnames(Results) <- "Fit"
+round(Results,2)
+
+par(mfrow= c(1,3))
+fa.diagram(fa.out.none, cut = 0.2, simple = F, main = "No Rotation")
+fa.diagram(fa.out.varimax, cut =0.2, simple = F, main = "Varimax rotation")
+fa.diagram(fa.out.quartimax,cut =0.16, simple = F, main = "Qaurtimax roation")
+```
+
+
+
+### Using PCA to reduce collinerarity  
+```{r}
+pc <- prcomp(X)
+summary(pc)
+
+screeplot(pc, type='lines')
+
+pc$rotation
+
+
+pca_dat <- data.frame(tot_death = b_dat$tot_death, tot_cases = b_dat$tot_cases,  pc$x)
+
+pca_dat <- pca_dat[,1:8]
+
+
+```
+
+
+### Checking PCA relationships  
+```{r}
+res2.A <-rcorr(as.matrix(pca_dat[,3:8]),type = "pearson")
+corrplot(res2.A$r, type="upper", order="hclust",tl.cex=.8)
+```
+
+
+
+##  Trying a binomial model with the first 6 PCs
+```{r}
+pca_fit <- glm(cbind(tot_death, tot_cases) ~ ., family = binomial, data = pca_dat)
+summary(pca_fit)
+```
+
+
+
+```{r eval=FALSE, echo=FALSE}
+
+   file.rename(from="SVI_COVID.md", 
+               to="README.md")
+               
+```
 
 
