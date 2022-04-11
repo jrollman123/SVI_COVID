@@ -1,11 +1,18 @@
-<<<<<<< HEAD
-SVI\_COVID
+COVID vs SVI Impact Analysis
 ================
 John Rollman
 July 5, 2021
 
 -   [Packages Used](#packages-used)
+-   [Load in Data](#load-in-data)
+-   [Exploratory Analysis](#exploratory-analysis)
+    -   [Summary Statistics](#summary-statistics)
     -   [Density Plots](#density-plots)
+-   [Clustering Counties, States, and
+    Variables](#clustering-counties-states-and-variables)
+    -   [Exploring the clusters](#exploring-the-clusters)
+-   [Assessing SVI and COVID Impacts](#assessing-svi-and-covid-impacts)
+    -   [Get Data from CDC API](#get-data-from-cdc-api)
     -   [Observing Death and Case
         Distributions](#observing-death-and-case-distributions)
     -   [Trying a Poisson model using a rate of deaths per
@@ -51,7 +58,7 @@ library(RColorBrewer)
 library(MVN)
 ```
 
-\#Load in Data
+# Load in Data
 
 ``` r
 sviDat <- read.csv("SVI2018_US_COUNTY.csv") %>% #Load CSV provided by CDC website
@@ -555,8 +562,9 @@ Coffee
 
 </div>
 
-\#Exploratory Analysis  
-\#\#Summary Statistics
+# Exploratory Analysis
+
+## Summary Statistics
 
 ``` r
 #Summary
@@ -966,7 +974,7 @@ print(a)
 
 ![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-5.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-6.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-7.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-8.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-9.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-10.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-11.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-12.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-13.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-14.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-15.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-4-16.png)<!-- -->
 
-\#Clustering Counties, States, and Variables
+# Clustering Counties, States, and Variables
 
 ``` r
 # Clustering the variables base on correlation
@@ -1039,7 +1047,7 @@ st_grp <- sviDat_st_c %>%
   summarise(st_grp = max(group))
 ```
 
-\#\#Exploring the clusters
+## Exploring the clusters
 
 ``` r
 dat_box <- sviDat_st_c %>%
@@ -1062,8 +1070,9 @@ print(a)
 
 ![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-3.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-4.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-5.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-6.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-7.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-8.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-9.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-10.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-11.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-12.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-13.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-14.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-15.png)<!-- -->![](SVI_COVID_files/figure-gfm/unnamed-chunk-6-16.png)<!-- -->
 
-\#Assessing SVI and COVID Impacts  
-\#\# Get Data from CDC API
+# Assessing SVI and COVID Impacts
+
+## Get Data from CDC API
 
 ``` r
 library("RSocrata")
@@ -1585,9 +1594,3 @@ summary(pca_fit)
     ## AIC: 369019
     ## 
     ## Number of Fisher Scoring iterations: 6
-=======
-# Current Work in Progress
-
-# SVI_COVID
-Looking at CDC's 2018 SVI scoring and COVID outcomes
->>>>>>> 25d9830ffddf8c3a0f809d3bf4a81fffcfa895ef
