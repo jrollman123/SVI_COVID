@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 SVI\_COVID
 ================
 John Rollman
@@ -1584,3 +1585,9 @@ summary(pca_fit)
     ## AIC: 369019
     ## 
     ## Number of Fisher Scoring iterations: 6
+=======
+# Current Work in Progress
+
+# SVI_COVID
+Looking at CDC's 2018 SVI scoring and COVID outcomes
+>>>>>>> 25d9830ffddf8c3a0f809d3bf4a81fffcfa895ef
