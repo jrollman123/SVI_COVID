@@ -1004,12 +1004,8 @@ sviDat_state <- sviDat %>%
   select(!c(COUNTY,FIPS,E_TOTPOP)) %>%
   group_by(STATE, ST_ABBR) %>%
   summarise(across(everything(), list(avg = mean, min = min, max = max))) 
-```
+  
 
-    ## `summarise()` has grouped output by 'STATE'. You can override using the
-    ## `.groups` argument.
-
-``` r
 # Clustering States  
 SVI_hc_st <- hclust(dist(scale(sviDat_state[,3:50])), method = "complete")
 SVI_hc_st$labels <- sviDat_state$STATE
@@ -1076,11 +1072,7 @@ print(a)
 
 ``` r
 library("RSocrata")
-```
 
-    ## Warning: package 'RSocrata' was built under R version 4.1.3
-
-``` r
 cnty_covDat <- read.socrata(
   "https://data.cdc.gov/resource/kn79-hsxy.json",
   app_token = token, 
@@ -1193,49 +1185,6 @@ dp
 
 ``` r
 library(AER)
-```
-
-    ## Warning: package 'AER' was built under R version 4.1.3
-
-    ## Loading required package: car
-
-    ## Loading required package: carData
-
-    ## 
-    ## Attaching package: 'car'
-
-    ## The following object is masked from 'package:psych':
-    ## 
-    ##     logit
-
-    ## The following object is masked from 'package:dplyr':
-    ## 
-    ##     recode
-
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     some
-
-    ## Loading required package: lmtest
-
-    ## Warning: package 'lmtest' was built under R version 4.1.1
-
-    ## Loading required package: zoo
-
-    ## Warning: package 'zoo' was built under R version 4.1.1
-
-    ## 
-    ## Attaching package: 'zoo'
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     as.Date, as.Date.numeric
-
-    ## Loading required package: sandwich
-
-    ## Warning: package 'sandwich' was built under R version 4.1.3
-
-``` r
 dispersiontest(poisson_fit)
 ```
 
@@ -1419,11 +1368,7 @@ f <- 3
 fa.out.none <- fa(X, fm="ml",nfactors = f, rotate="none")
 fa.out.varimax <- fa(X, fm="ml",nfactors = f, rotate="varimax")
 fa.out.quartimax <- fa(X, fm="ml",nfactors = f, rotate="quartimax")
-```
 
-    ## Loading required namespace: GPArotation
-
-``` r
 Results <- rbind(fa.out.none$TLI,fa.out.none$PVAL,fa.out.none$RMSEA[1])
 rownames(Results) <- c("Tucker Lewis Index", "ChiSq Pval","RMSEA")
 colnames(Results) <- "Fit"
@@ -1472,79 +1417,9 @@ screeplot(pc, type='lines')
 ![](SVI_COVID_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
-pc$rotation
-```
+#pc$rotation
 
-    ##                          PC1         PC2         PC3         PC4         PC5
-    ## EP_POV_avg      0.3799651998 -0.04577211  0.20529289 -0.04168733  0.19133524
-    ## EP_UNEMP_avg    0.2967628428 -0.24270968  0.21334636  0.01157319  0.01298642
-    ## EP_PCI_avg     -0.3390569462 -0.24947002  0.10586735  0.02904783  0.06949082
-    ## EP_NOHSDP_avg   0.3789894018 -0.04075355  0.13610427  0.11529096  0.22058816
-    ## EP_AGE65_avg   -0.0087773912  0.34850047  0.20560772  0.37593494 -0.36217172
-    ## EP_AGE17_avg    0.1675467150  0.07313609 -0.57889238 -0.16962011  0.36980771
-    ## EP_DISABL_avg   0.3173064142  0.14988919  0.31097775  0.02774000 -0.11825705
-    ## EP_SNGPNT_avg   0.2836354273 -0.21554639  0.06159889 -0.22738470  0.10380112
-    ## EP_MINRTY_avg   0.1268130836 -0.36524053 -0.03180161  0.34994935  0.05619654
-    ## EP_LIMENG_avg  -0.0009997445 -0.22208192 -0.16596237  0.71032773  0.15121753
-    ## EP_MUNIT_avg   -0.2104527381 -0.32395039  0.22900474  0.02899059  0.25120840
-    ## EP_MOBILE_avg   0.3730689292  0.10604366  0.09861040  0.08701622 -0.04533731
-    ## EP_CROWD_avg    0.1005733334 -0.31344366 -0.35285692  0.13722198 -0.33849744
-    ## EP_NOVEH_avg   -0.0554804827 -0.39995566  0.20142727 -0.26226523  0.01211688
-    ## EP_GROUPQ_avg   0.0373566597 -0.34600140  0.01073588 -0.17474193 -0.58898379
-    ## EP_UNINSUR_avg  0.2924762971 -0.05033618 -0.38573973 -0.08849350 -0.25344309
-    ##                        PC6         PC7         PC8         PC9         PC10
-    ## EP_POV_avg     -0.23446607  0.02752400 -0.11697115  0.09687616 -0.249465531
-    ## EP_UNEMP_avg    0.23630516 -0.30147789  0.45857982  0.04537611 -0.058684312
-    ## EP_PCI_avg      0.06401153  0.14669791  0.20657751 -0.04732216  0.183182558
-    ## EP_NOHSDP_avg   0.08611410  0.13759052 -0.30179479 -0.41039930  0.079553857
-    ## EP_AGE65_avg   -0.01158591  0.07783469  0.15432165  0.31053190 -0.391768782
-    ## EP_AGE17_avg   -0.12498017 -0.03991526 -0.03976640  0.03072472 -0.448450133
-    ## EP_DISABL_avg  -0.28255786 -0.35736540 -0.10291978 -0.26724222  0.235572231
-    ## EP_SNGPNT_avg   0.60740466  0.02877607  0.04676993  0.29741447  0.004410983
-    ## EP_MINRTY_avg  -0.12431361  0.22368107 -0.38280366  0.49383363  0.305186407
-    ## EP_LIMENG_avg   0.18679725 -0.05715341  0.17483324 -0.37424616 -0.189045839
-    ## EP_MUNIT_avg   -0.38680009  0.22259333  0.11512673 -0.01249700 -0.185758319
-    ## EP_MOBILE_avg  -0.16564667  0.34949817  0.24085454  0.16195330 -0.112680406
-    ## EP_CROWD_avg   -0.20309057 -0.51215478 -0.07369184  0.18802935  0.018412060
-    ## EP_NOVEH_avg   -0.29067883 -0.16264465  0.19953472 -0.01086333 -0.181422199
-    ## EP_GROUPQ_avg   0.14182759  0.27997340 -0.31877189 -0.29801668 -0.378558864
-    ## EP_UNINSUR_avg -0.19970862  0.37359755  0.45701313 -0.16136087  0.362897329
-    ##                       PC11        PC12         PC13         PC14        PC15
-    ## EP_POV_avg      0.07651333 -0.42202538  0.186480651 -0.377794217 -0.24199662
-    ## EP_UNEMP_avg   -0.37491953 -0.39497211 -0.102908588  0.342989452  0.12449561
-    ## EP_PCI_avg     -0.07253906  0.18244894  0.205287451  0.360434188 -0.48933190
-    ## EP_NOHSDP_avg   0.10886815  0.04862368  0.531558887  0.348616646  0.04796706
-    ## EP_AGE65_avg    0.39705295 -0.03948899  0.118341840  0.327718458 -0.05156486
-    ## EP_AGE17_avg    0.01499713  0.09553903 -0.216055663  0.406743865 -0.13556890
-    ## EP_DISABL_avg   0.15808419  0.29361895 -0.464356662  0.171324408 -0.04455357
-    ## EP_SNGPNT_avg   0.41090362  0.34497878 -0.057188271 -0.114392560  0.13062267
-    ## EP_MINRTY_avg  -0.01956850 -0.13433879 -0.289056917  0.172261930 -0.13106382
-    ## EP_LIMENG_avg   0.10106113  0.07519127 -0.187001835 -0.301768827 -0.09626457
-    ## EP_MUNIT_avg    0.11768353  0.09733887 -0.036262841  0.104805707  0.65006261
-    ## EP_MOBILE_avg  -0.50792548  0.53091802  0.063966892 -0.165922114 -0.07288243
-    ## EP_CROWD_avg   -0.04402306  0.20537097  0.437338760 -0.023926819  0.16510661
-    ## EP_NOVEH_avg    0.28448307  0.11939741  0.013442937 -0.094927352 -0.40067058
-    ## EP_GROUPQ_avg  -0.13722900 -0.04109452 -0.186804869  0.063649982 -0.01285663
-    ## EP_UNINSUR_avg  0.31721300 -0.20287687 -0.009068989  0.004210613  0.04250337
-    ##                        PC16
-    ## EP_POV_avg     -0.460414380
-    ## EP_UNEMP_avg    0.066170257
-    ## EP_PCI_avg     -0.501783034
-    ## EP_NOHSDP_avg   0.247874150
-    ## EP_AGE65_avg    0.022503193
-    ## EP_AGE17_avg   -0.072358598
-    ## EP_DISABL_avg  -0.249334024
-    ## EP_SNGPNT_avg  -0.158481814
-    ## EP_MINRTY_avg   0.161282623
-    ## EP_LIMENG_avg  -0.003150188
-    ## EP_MUNIT_avg   -0.170566747
-    ## EP_MOBILE_avg   0.083081693
-    ## EP_CROWD_avg   -0.160728688
-    ## EP_NOVEH_avg    0.527963816
-    ## EP_GROUPQ_avg  -0.097293029
-    ## EP_UNINSUR_avg -0.036375280
 
-``` r
 pca_dat <- data.frame(tot_death = b_dat$tot_death, tot_cases = b_dat$tot_cases,  pc$x)
 
 pca_dat <- pca_dat[,1:8]

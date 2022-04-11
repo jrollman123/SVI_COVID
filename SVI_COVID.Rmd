@@ -46,7 +46,7 @@ library(MVN)
 
 
 # Load in Data  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 sviDat <- read.csv("SVI2018_US_COUNTY.csv") %>% #Load CSV provided by CDC website
   select(c(STATE,ST_ABBR,COUNTY,FIPS, E_TOTPOP)|starts_with('EP_')) %>% #For this analysis we will be using the percent values for the measures rather than raw values
   replace(., . ==-999, NA) %>% #Excluding counties with missing data
@@ -60,7 +60,7 @@ kable(head(sviDat), caption = "Preview of SVI Data", digits = 1, format = 'html'
 
 # Exploratory Analysis  
 ## Summary Statistics  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 #Summary
 kable(do.call(cbind, lapply(sviDat[,5:20], summary)), caption = "Summary Statistics for All Variables", digits = 1, format = 'html') %>%
   kable_styling() %>%
@@ -69,7 +69,7 @@ kable(do.call(cbind, lapply(sviDat[,5:20], summary)), caption = "Summary Statist
 
 
 ## Density Plots  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 #Create Density Plots
 for(i in 5:20) {
 a <- ggplot(sviDat,aes(sviDat[,i])) + 
@@ -82,7 +82,7 @@ print(a)
 ```
 
 # Clustering Counties, States, and Variables 
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 # Clustering the variables base on correlation
 SVI_hc_corr <- hclust(as.dist(1-abs(cor(scale(sviDat[,6:20])))))
 plot(as.phylo(SVI_hc_corr), type = "fan", cex=.6)
@@ -129,7 +129,7 @@ st_grp <- sviDat_st_c %>%
 
 
 ## Exploring the clusters  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 
 dat_box <- sviDat_st_c %>%
   select(ends_with('avg') | c(STATE, ST_ABBR, group)) %>%
@@ -160,7 +160,7 @@ print(a)
 
 # Assessing SVI and COVID Impacts  
 ## Get Data from CDC API
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 
 library("RSocrata")
 
@@ -198,7 +198,7 @@ st_covDat <- read.socrata(
 
 
 ## Observing Death and Case Distributions
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 ggplot(st_covDat,aes(tot_death)) + 
   geom_density(kernel = "gaussian", fill = 'lightpink') +
   geom_vline(aes(xintercept=mean(tot_death)), color="blue", linetype="dashed", size=1) +
@@ -215,7 +215,7 @@ ggplot(st_covDat,aes(tot_cases)) +
 ```
 
 ## Trying a Poisson model using a rate of deaths per cases
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 log_dat <- st_covDat %>%
   select(c(tot_death, tot_cases)|ends_with('avg')) %>%
   mutate(logcase = log(tot_cases), .keep='unused')
@@ -236,7 +236,7 @@ Very high dispersion resulting in a probably faulty model
 
 
 ## Trying a quasipoisson model  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 poisson_fit <- glm(tot_death ~ . - logcase + offset(logcase), family = quasipoisson(), data = log_dat)
 summary(poisson_fit)
 
@@ -244,7 +244,7 @@ summary(poisson_fit)
 
 
 ## Trying a binomial model
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 b_dat <- st_covDat %>%
   select(c(tot_death, tot_cases)|ends_with('avg')) 
 
@@ -255,7 +255,7 @@ summary(b_fit)
 
 
 ## Checking multicollinearity  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 res2.A <-rcorr(as.matrix(b_dat[,3:18]),type = "pearson")
 corrplot(res2.A$r, type="upper", order="hclust",tl.cex=.8)
 ```
@@ -263,7 +263,7 @@ corrplot(res2.A$r, type="upper", order="hclust",tl.cex=.8)
 
 ## Reducing multicolinearity with dimension reduction  
 ### Using Exploratory Factor Analysis to reduce collinearity
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 #Preprocessing
 X <- b_dat[,3:18]
 
@@ -294,13 +294,13 @@ fa.diagram(fa.out.quartimax,cut =0.16, simple = F, main = "Qaurtimax roation")
 
 
 ### Using PCA to reduce collinerarity  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 pc <- prcomp(X)
 summary(pc)
 
 screeplot(pc, type='lines')
 
-pc$rotation
+#pc$rotation
 
 
 pca_dat <- data.frame(tot_death = b_dat$tot_death, tot_cases = b_dat$tot_cases,  pc$x)
@@ -312,7 +312,7 @@ pca_dat <- pca_dat[,1:8]
 
 
 ### Checking PCA relationships  
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 res2.A <-rcorr(as.matrix(pca_dat[,3:8]),type = "pearson")
 corrplot(res2.A$r, type="upper", order="hclust",tl.cex=.8)
 ```
@@ -320,7 +320,7 @@ corrplot(res2.A$r, type="upper", order="hclust",tl.cex=.8)
 
 
 ##  Trying a binomial model with the first 6 PCs
-```{r}
+```{r message=FALSE, warning=FALSE, error=FALSE}
 pca_fit <- glm(cbind(tot_death, tot_cases) ~ ., family = binomial, data = pca_dat)
 summary(pca_fit)
 ```
